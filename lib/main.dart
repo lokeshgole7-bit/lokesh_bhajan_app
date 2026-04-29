@@ -4,10 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-// Instagram लोगो के लिए नया पैकेज
 import 'package:font_awesome_flutter/font_awesome_flutter.dart'; 
+import 'package:async_wallpaper/async_wallpaper.dart';
 
 void main() {
   runApp(const GitaApp());
@@ -21,6 +20,19 @@ class GitaApp extends StatefulWidget {
 
 class _GitaAppState extends State<GitaApp> {
   bool _isDarkMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAutoDarkMode(); // फीचर 5: ऑटो डार्क मोड
+  }
+
+  void _checkAutoDarkMode() {
+    var hour = DateTime.now().hour;
+    if (hour >= 19 || hour <= 6) {
+      setState(() => _isDarkMode = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,17 +61,23 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final List<Widget> _screens = [
+      GitaList(onThemeToggle: widget.onThemeToggle, isDark: widget.isDark),
+      const JapaTracker(),
+      const WallpaperGallery(),
+    ];
+
     return Scaffold(
-      body: _tabIndex == 0 
-          ? GitaList(onThemeToggle: widget.onThemeToggle, isDark: widget.isDark) 
-          : const JapaTracker(),
+      body: _screens[_tabIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _tabIndex,
         onTap: (index) => setState(() => _tabIndex = index),
         selectedItemColor: Colors.orange[900],
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.book), label: "Gita"),
           BottomNavigationBarItem(icon: Icon(Icons.vibration), label: "Naam Jap"),
+          BottomNavigationBarItem(icon: Icon(Icons.image), label: "Wallpaper"),
         ],
       ),
     );
@@ -96,8 +114,6 @@ class _GitaListState extends State<GitaList> {
           _filteredChapters = _chapters;
           _isLoading = false;
         });
-      } else {
-        setState(() => _isLoading = false);
       }
     } catch (e) {
       setState(() => _isLoading = false);
@@ -109,8 +125,7 @@ class _GitaListState extends State<GitaList> {
       _filteredChapters = _chapters
           .where((ch) => 
               ch['name'].toString().toLowerCase().contains(query.toLowerCase()) || 
-              ch['chapter_number'].toString().contains(query) ||
-              (ch['name_hindi'] != null && ch['name_hindi'].toString().contains(query)))
+              ch['chapter_number'].toString().contains(query))
           .toList();
     });
   }
@@ -123,11 +138,10 @@ class _GitaListState extends State<GitaList> {
           expandedHeight: 250, pinned: true, backgroundColor: Colors.orange[900],
           actions: [
             IconButton(icon: Icon(widget.isDark ? Icons.light_mode : Icons.dark_mode), onPressed: widget.onThemeToggle),
-            // Updated Instagram Icon (असली लोगो)
+            // फीचर 3: असली Instagram लोगो
             IconButton(
               icon: const FaIcon(FontAwesomeIcons.instagram, color: Colors.white), 
               onPressed: () => launchUrl(Uri.parse("https://www.instagram.com/bhajanmarg_official")),
-              tooltip: "Instagram",
             ),
           ],
           flexibleSpace: FlexibleSpaceBar(
@@ -135,7 +149,7 @@ class _GitaListState extends State<GitaList> {
             background: Image.network("https://www.bhaktiphotos.com/wp-content/uploads/2023/04/Premanand-Ji-Maharaj-Photo-Download.jpg", fit: BoxFit.cover),
           ),
         ),
-        // Search Bar Section (Same as before)
+        // फीचर 2: Search Bar
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.all(12.0),
@@ -143,7 +157,7 @@ class _GitaListState extends State<GitaList> {
               controller: _searchController,
               onChanged: _filterChapters,
               decoration: InputDecoration(
-                hintText: "अध्याय का नाम या नंबर खोजें...",
+                hintText: "अध्याय खोजें...",
                 prefixIcon: const Icon(Icons.search, color: Colors.orange),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
                 filled: true,
@@ -154,8 +168,6 @@ class _GitaListState extends State<GitaList> {
         ),
         if (_isLoading)
           const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
-        else if (_filteredChapters.isEmpty)
-          const SliverFillRemaining(child: Center(child: Text("कोई अध्याय नहीं मिला")))
         else
           SliverList(
             delegate: SliverChildBuilderDelegate((c, i) {
@@ -167,9 +179,7 @@ class _GitaListState extends State<GitaList> {
                   title: Text(ch['name_hindi'] ?? ch['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text("${ch['verses_count']} श्लोक"),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${ch['name_hindi']} खुल रहा है...")));
-                  },
+                  onTap: () {},
                 ),
               );
             }, childCount: _filteredChapters.length),
@@ -179,7 +189,6 @@ class _GitaListState extends State<GitaList> {
   }
 }
 
-// JapaTracker Code (Same as before, keep purana if it was safe)
 class JapaTracker extends StatefulWidget {
   const JapaTracker({super.key});
   @override
@@ -187,40 +196,42 @@ class JapaTracker extends StatefulWidget {
 }
 
 class _JapaTrackerState extends State<JapaTracker> {
-  int _count = 0;
+  int _totalCount = 0; // फीचर 5: Lifetime Total
+  int _lastDayCount = 0;
   List<String> _history = [];
   String _lastDate = "";
 
   @override
   void initState() {
     super.initState();
-    _loadAndCheckDate();
+    _loadData();
   }
 
-  _loadAndCheckDate() async {
+  _loadData() async {
     final p = await SharedPreferences.getInstance();
     String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
     setState(() {
-      _count = p.getInt('c') ?? 0;
+      _totalCount = p.getInt('total_c') ?? 0;
+      _lastDayCount = p.getInt('last_day_c') ?? 0;
       _history = p.getStringList('h') ?? [];
       _lastDate = p.getString('ld') ?? today;
     });
 
-    if (_lastDate != today && _count > 0) {
-      _history.insert(0, "$_lastDate: $_count जप (स्वयं सेवित)");
-      _count = 0;
-      await p.setInt('c', 0);
+    if (_lastDate != today) {
+      int todayJap = _totalCount - _lastDayCount;
+      if (todayJap > 0) _history.insert(0, "$_lastDate: $todayJap जप");
       await p.setStringList('h', _history);
       await p.setString('ld', today);
-      setState(() {});
+      await p.setInt('last_day_c', _totalCount);
+      setState(() { _lastDate = today; _lastDayCount = _totalCount; });
     }
   }
 
   void _increment() async {
     HapticFeedback.lightImpact();
-    setState(() => _count++);
+    setState(() => _totalCount++);
     final p = await SharedPreferences.getInstance();
-    p.setInt('c', _count);
+    p.setInt('total_c', _totalCount);
   }
 
   @override
@@ -235,17 +246,14 @@ class _JapaTrackerState extends State<JapaTracker> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text("$_count", style: const TextStyle(fontSize: 90, fontWeight: FontWeight.bold, color: Colors.orange)),
-                  const Text("आज का कुल जप", style: TextStyle(fontSize: 18)),
+                  Text("$_totalCount", style: const TextStyle(fontSize: 90, fontWeight: FontWeight.bold, color: Colors.orange)),
+                  const Text("कुल महामंत्र जप", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
                   const SizedBox(height: 40),
                   GestureDetector(
                     onTap: _increment,
                     child: Container(
                       height: 160, width: 160,
-                      decoration: BoxDecoration(
-                        color: Colors.orange[800], shape: BoxShape.circle,
-                        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10)]
-                      ),
+                      decoration: BoxDecoration(color: Colors.orange[800], shape: BoxShape.circle, boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10)]),
                       child: const Center(child: Text("जप करें", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold))),
                     ),
                   ),
@@ -254,23 +262,62 @@ class _JapaTrackerState extends State<JapaTracker> {
             ),
           ),
           const Divider(thickness: 2),
-          const Padding(padding: EdgeInsets.all(8), child: Text("साधना इतिहास", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
           Expanded(
             flex: 4,
-            child: _history.isEmpty 
-              ? const Center(child: Text("अभी कोई इतिहास नहीं है"))
-              : ListView.builder(
-                  itemCount: _history.length,
-                  itemBuilder: (c, i) => Card(
-                    margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                    child: ListTile(
-                      leading: const Icon(Icons.history, color: Colors.orange),
-                      title: Text(_history[i]),
-                    ),
-                  ),
-                ),
+            child: ListView.builder(
+              itemCount: _history.length,
+              itemBuilder: (c, i) => ListTile(title: Text(_history[i])),
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class WallpaperGallery extends StatelessWidget {
+  const WallpaperGallery({super.key});
+
+  Future<void> setWallpaper(BuildContext context, String url, int location) async {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("वॉलपेपर सेट हो रहा है...")));
+    try {
+      await AsyncWallpaper.setWallpaper(url: url, wallpaperLocation: location, goToHome: true);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("सफलतापूर्वक सेट किया गया!")));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("त्रुटि!")));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // फीचर 20 वॉलपेपर्स (यहाँ लिंक जोड़ते जाएँ)
+    final List<String> images = [
+      "https://www.bhaktiphotos.com/wp-content/uploads/2023/04/Premanand-Ji-Maharaj-Photo-Download.jpg",
+      "https://www.bhaktiphotos.com/wp-content/uploads/2018/04/Lord-Krishna-Images-HD-Wallpaper-Full-Size-Download.jpg",
+    ];
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("दिव्य वॉलपेपर"), backgroundColor: Colors.orange[900]),
+      body: GridView.builder(
+        padding: const EdgeInsets.all(10),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 0.7),
+        itemCount: images.length,
+        itemBuilder: (c, i) => GestureDetector(
+          onTap: () {
+            // फीचर 2: Set as Wallpaper बटन
+            showModalBottomSheet(
+              context: context,
+              builder: (context) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(leading: const Icon(Icons.home), title: const Text("Home Screen"), onTap: () { Navigator.pop(context); setWallpaper(context, images[i], AsyncWallpaper.HOME_SCREEN); }),
+                  ListTile(leading: const Icon(Icons.lock), title: const Text("Lock Screen"), onTap: () { Navigator.pop(context); setWallpaper(context, images[i], AsyncWallpaper.LOCK_SCREEN); }),
+                ],
+              ),
+            );
+          },
+          child: ClipRRect(borderRadius: BorderRadius.circular(15), child: Image.network(images[i], fit: BoxFit.cover)),
+        ),
       ),
     );
   }
