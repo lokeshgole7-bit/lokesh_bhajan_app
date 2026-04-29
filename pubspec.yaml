@@ -2,7 +2,7 @@ name: lokesh_bhajan_app
 description: "Bhajan Marg - Shri Premanand Ji Maharaj Spiritual App"
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: '>=3.2.3 <4.0.0'
@@ -11,7 +11,6 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Core dependencies
   http: ^1.1.0
   font_awesome_flutter: ^10.7.0
   shared_preferences: ^2.2.2
