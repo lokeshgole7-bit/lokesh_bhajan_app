@@ -181,8 +181,10 @@ class _JapaTrackerState extends State<JapaTracker> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Naam Jap Seva"), backgroundColor: Colors.orange[900]),
-      body: Column(
+    body: Center(
+      child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text("$_count", style: const TextStyle(fontSize: 100, fontWeight: FontWeight.bold, color: Colors.orange)),
           const Text("Total Jap", style: TextStyle(fontSize: 20)),
@@ -191,14 +193,22 @@ class _JapaTrackerState extends State<JapaTracker> {
             onTap: _increment,
             child: Container(
               height: 180, width: 180,
-              decoration: BoxDecoration(color: Colors.orange[800], shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: Colors.orange[800], 
+                shape: BoxShape.circle,
+                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10)]
+              ),
               child: const Center(child: Text("Jap Karein", style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold))),
             ),
           ),
-          const SizedBox(height: 20),
-          TextButton(onPressed: () => setState(() => _count = 0), child: const Text("Reset", style: TextStyle(color: Colors.red))),
+          const SizedBox(height: 40),
+          TextButton(
+            onPressed: () => setState(() => _count = 0), 
+            child: const Text("Reset", style: TextStyle(color: Colors.red, fontSize: 18, fontWeight: FontWeight.bold))
+          ),
         ],
       ),
-    );
+    ),
+      );
   }
 }
