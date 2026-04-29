@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+// Instagram लोगो के लिए नया पैकेज
+import 'package:font_awesome_flutter/font_awesome_flutter.dart'; 
 
 void main() {
   runApp(const GitaApp());
@@ -75,7 +77,7 @@ class GitaList extends StatefulWidget {
 
 class _GitaListState extends State<GitaList> {
   List _chapters = [];
-  List _filteredChapters = []; // Search के लिए Filtered List
+  List _filteredChapters = [];
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
 
@@ -91,22 +93,24 @@ class _GitaListState extends State<GitaList> {
       if (response.statusCode == 200) {
         setState(() {
           _chapters = json.decode(response.body);
-          _filteredChapters = _chapters; // शुरुआत में सब दिखाओ
+          _filteredChapters = _chapters;
           _isLoading = false;
         });
+      } else {
+        setState(() => _isLoading = false);
       }
     } catch (e) {
       setState(() => _isLoading = false);
     }
   }
 
-  // Search Function
   void _filterChapters(String query) {
     setState(() {
       _filteredChapters = _chapters
           .where((ch) => 
               ch['name'].toString().toLowerCase().contains(query.toLowerCase()) || 
-              ch['chapter_number'].toString().contains(query))
+              ch['chapter_number'].toString().contains(query) ||
+              (ch['name_hindi'] != null && ch['name_hindi'].toString().contains(query)))
           .toList();
     });
   }
@@ -119,13 +123,19 @@ class _GitaListState extends State<GitaList> {
           expandedHeight: 250, pinned: true, backgroundColor: Colors.orange[900],
           actions: [
             IconButton(icon: Icon(widget.isDark ? Icons.light_mode : Icons.dark_mode), onPressed: widget.onThemeToggle),
+            // Updated Instagram Icon (असली लोगो)
+            IconButton(
+              icon: const FaIcon(FontAwesomeIcons.instagram, color: Colors.white), 
+              onPressed: () => launchUrl(Uri.parse("https://www.instagram.com/bhajanmarg_official")),
+              tooltip: "Instagram",
+            ),
           ],
           flexibleSpace: FlexibleSpaceBar(
             title: const Text("Bhajan Marg", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             background: Image.network("https://www.bhaktiphotos.com/wp-content/uploads/2023/04/Premanand-Ji-Maharaj-Photo-Download.jpg", fit: BoxFit.cover),
           ),
         ),
-        // Search Bar Section
+        // Search Bar Section (Same as before)
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.all(12.0),
@@ -144,6 +154,8 @@ class _GitaListState extends State<GitaList> {
         ),
         if (_isLoading)
           const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
+        else if (_filteredChapters.isEmpty)
+          const SliverFillRemaining(child: Center(child: Text("कोई अध्याय नहीं मिला")))
         else
           SliverList(
             delegate: SliverChildBuilderDelegate((c, i) {
@@ -156,7 +168,7 @@ class _GitaListState extends State<GitaList> {
                   subtitle: Text("${ch['verses_count']} श्लोक"),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Loading Chapter ${ch['chapter_number']}...")));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${ch['name_hindi']} खुल रहा है...")));
                   },
                 ),
               );
@@ -167,6 +179,7 @@ class _GitaListState extends State<GitaList> {
   }
 }
 
+// JapaTracker Code (Same as before, keep purana if it was safe)
 class JapaTracker extends StatefulWidget {
   const JapaTracker({super.key});
   @override
