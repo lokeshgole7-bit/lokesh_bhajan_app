@@ -73,7 +73,6 @@ class GitaList extends StatelessWidget {
       "sh": "धृतराष्ट्र उवाच |\nधर्मक्षेत्रे कुरुक्षेत्रे समवेता युयुत्सवः |\nमामकाः पाण्डवाश्चैव किमकुर्वत सञ्जय ||१||",
       "m": "Dharam-bhumi Kurukshetra mein yuddh ki iccha se ekatra hue mere aur Pandu ke putro ne kya kiya?"
     },
-    // Baaki adhyay yaha judenge...
   ];
 
   @override
@@ -84,11 +83,9 @@ class GitaList extends StatelessWidget {
           expandedHeight: 250, pinned: true, backgroundColor: Colors.orange[900],
           actions: [
             IconButton(icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode), onPressed: onThemeToggle),
-            // Updated Instagram Link button
             IconButton(
               icon: const Icon(Icons.camera_alt), 
               onPressed: () => launchUrl(Uri.parse("https://www.instagram.com/bhajanmarg_official")),
-              tooltip: "Bhajan Marg Official",
             ),
           ],
           flexibleSpace: FlexibleSpaceBar(
@@ -100,7 +97,7 @@ class GitaList extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(15),
             color: Colors.orange[50],
-            child: const Text("Aaj ka Vichar: 'Bhajan Bina Chain Nahi.' - Bhajan Marg", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.brown)),
+            child: const Text("आज का विचार: 'भजन बिना चैन नहीं।' - भजन मार्ग", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.brown)),
           ),
         ),
         SliverList(
@@ -117,11 +114,11 @@ class GitaList extends StatelessWidget {
                     children: [
                       Text(chapters[0]["sh"], textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       const Divider(),
-                      Text("Arth: ${chapters[0]["m"]}", textAlign: TextAlign.center),
+                      Text("अर्थ: ${chapters[0]["m"]}", textAlign: TextAlign.center),
                       const Spacer(),
                       ElevatedButton.icon(
                         icon: const Icon(Icons.share),
-                        label: const Text("WhatsApp par Share karein"),
+                        label: const Text("WhatsApp पर शेयर करें"),
                         onPressed: () => Share.share("${chapters[0]["sh"]}\n\nArth: ${chapters[0]["m"]}\n- Bhajan Marg App"),
                       )
                     ],
@@ -145,70 +142,96 @@ class JapaTracker extends StatefulWidget {
 class _JapaTrackerState extends State<JapaTracker> {
   int _count = 0;
   List<String> _history = [];
+  String _lastDate = "";
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    _loadAndCheckDate();
+  }
 
-  _load() async {
+  _loadAndCheckDate() async {
     final p = await SharedPreferences.getInstance();
-    setState(() { _count = p.getInt('c') ?? 0; _history = p.getStringList('h') ?? []; });
+    String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    
+    setState(() {
+      _count = p.getInt('c') ?? 0;
+      _history = p.getStringList('h') ?? [];
+      _lastDate = p.getString('ld') ?? today;
+    });
+
+    if (_lastDate != today) {
+      if (_count > 0) {
+        _history.insert(0, "$_lastDate: $_count Jap (Auto-Saved)");
+        _count = 0;
+        await p.setInt('c', 0);
+        await p.setStringList('h', _history);
+      }
+      await p.setString('ld', today);
+      setState(() => _lastDate = today);
+    }
   }
 
   void _increment() async {
     HapticFeedback.lightImpact();
-    setState(() {
-      _count++;
-      if (_count == 100 || _count == 500 || (_count > 0 && _count % 1000 == 0)) {
-        _showMilestone(_count);
-      }
-    });
-    final p = await SharedPreferences.getInstance(); p.setInt('c', _count);
-  }
-
-  void _showMilestone(int count) {
-    String msg = "Radhe Radhe! Naam japte rahein.";
-    if (count == 100) msg = "Naam jap se hi shanti milegi.";
-    if (count % 1000 == 0) msg = "Ek hazar jap purna! Maharaj ji ka aashirwad.";
-
-    showDialog(context: context, builder: (c) => AlertDialog(
-      title: const Text("Bhajan Marg Milestone"),
-      content: Text("$count Jap Purna!\n\n'$msg'"),
-      actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text("Radhe Radhe"))],
-    ));
+    setState(() => _count++);
+    final p = await SharedPreferences.getInstance();
+    p.setInt('c', _count);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Naam Jap Seva"), backgroundColor: Colors.orange[900]),
-    body: Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
+      appBar: AppBar(title: const Text("नाम जप सेवा"), backgroundColor: Colors.orange[900], centerTitle: true),
+      body: Column(
         children: [
-          Text("$_count", style: const TextStyle(fontSize: 100, fontWeight: FontWeight.bold, color: Colors.orange)),
-          const Text("Total Jap", style: TextStyle(fontSize: 20)),
-          const SizedBox(height: 50),
-          GestureDetector(
-            onTap: _increment,
-            child: Container(
-              height: 180, width: 180,
-              decoration: BoxDecoration(
-                color: Colors.orange[800], 
-                shape: BoxShape.circle,
-                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10)]
+          Expanded(
+            flex: 5,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text("$_count", style: const TextStyle(fontSize: 90, fontWeight: FontWeight.bold, color: Colors.orange)),
+                  const Text("आज का कुल जप", style: TextStyle(fontSize: 18)),
+                  const SizedBox(height: 40),
+                  GestureDetector(
+                    onTap: _increment,
+                    child: Container(
+                      height: 160, width: 160,
+                      decoration: BoxDecoration(
+                        color: Colors.orange[800], 
+                        shape: BoxShape.circle,
+                        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10)]
+                      ),
+                      child: const Center(child: Text("जप करें", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold))),
+                    ),
+                  ),
+                ],
               ),
-              child: const Center(child: Text("Jap Karein", style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold))),
             ),
           ),
-          const SizedBox(height: 40),
-          TextButton(
-            onPressed: () => setState(() => _count = 0), 
-            child: const Text("Reset", style: TextStyle(color: Colors.red, fontSize: 18, fontWeight: FontWeight.bold))
+          const Divider(thickness: 2),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text("साधना इतिहास", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+          ),
+          Expanded(
+            flex: 4,
+            child: _history.isEmpty 
+              ? const Center(child: Text("अभी कोई इतिहास नहीं है"))
+              : ListView.builder(
+                  itemCount: _history.length,
+                  itemBuilder: (c, i) => Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                    child: ListTile(
+                      leading: const Icon(Icons.history, color: Colors.orange),
+                      title: Text(_history[i].replaceAll("(Auto-Saved)", "(स्वयं सेवित)")),
+                    ),
+                  ),
+                ),
           ),
         ],
       ),
-    ),
-      );
+    );
   }
 }
