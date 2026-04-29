@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -62,18 +64,52 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
-class GitaList extends StatelessWidget {
+class GitaList extends StatefulWidget {
   final VoidCallback onThemeToggle;
   final bool isDark;
-  GitaList({super.key, required this.onThemeToggle, required this.isDark});
+  const GitaList({super.key, required this.onThemeToggle, required this.isDark});
 
-  final List<Map<String, dynamic>> chapters = [
-    {
-      "t": "1. Arjun Vishad Yog",
-      "sh": "धृतराष्ट्र उवाच |\nधर्मक्षेत्रे कुरुक्षेत्रे समवेता युयुत्सवः |\nमामकाः पाण्डवाश्चैव किमकुर्वत सञ्जय ||१||",
-      "m": "Dharam-bhumi Kurukshetra mein yuddh ki iccha se ekatra hue mere aur Pandu ke putro ne kya kiya?"
-    },
-  ];
+  @override
+  State<GitaList> createState() => _GitaListState();
+}
+
+class _GitaListState extends State<GitaList> {
+  List _chapters = [];
+  List _filteredChapters = []; // Search के लिए Filtered List
+  bool _isLoading = true;
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchGitaData();
+  }
+
+  _fetchGitaData() async {
+    try {
+      final response = await http.get(Uri.parse('https://bhagavadgitaapi.herokuapp.com/chapters'));
+      if (response.statusCode == 200) {
+        setState(() {
+          _chapters = json.decode(response.body);
+          _filteredChapters = _chapters; // शुरुआत में सब दिखाओ
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Search Function
+  void _filterChapters(String query) {
+    setState(() {
+      _filteredChapters = _chapters
+          .where((ch) => 
+              ch['name'].toString().toLowerCase().contains(query.toLowerCase()) || 
+              ch['chapter_number'].toString().contains(query))
+          .toList();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,52 +118,50 @@ class GitaList extends StatelessWidget {
         SliverAppBar(
           expandedHeight: 250, pinned: true, backgroundColor: Colors.orange[900],
           actions: [
-            IconButton(icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode), onPressed: onThemeToggle),
-            IconButton(
-              icon: const Icon(Icons.camera_alt), 
-              onPressed: () => launchUrl(Uri.parse("https://www.instagram.com/bhajanmarg_official")),
-            ),
+            IconButton(icon: Icon(widget.isDark ? Icons.light_mode : Icons.dark_mode), onPressed: widget.onThemeToggle),
           ],
           flexibleSpace: FlexibleSpaceBar(
             title: const Text("Bhajan Marg", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             background: Image.network("https://www.bhaktiphotos.com/wp-content/uploads/2023/04/Premanand-Ji-Maharaj-Photo-Download.jpg", fit: BoxFit.cover),
           ),
         ),
+        // Search Bar Section
         SliverToBoxAdapter(
-          child: Container(
-            padding: const EdgeInsets.all(15),
-            color: Colors.orange[50],
-            child: const Text("आज का विचार: 'भजन बिना चैन नहीं।' - भजन मार्ग", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.brown)),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: TextField(
+              controller: _searchController,
+              onChanged: _filterChapters,
+              decoration: InputDecoration(
+                hintText: "अध्याय का नाम या नंबर खोजें...",
+                prefixIcon: const Icon(Icons.search, color: Colors.orange),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                filled: true,
+                fillColor: Colors.orange[50],
+              ),
+            ),
           ),
         ),
-        SliverList(
-          delegate: SliverChildBuilderDelegate((c, i) => Card(
-            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            child: ListTile(
-              leading: CircleAvatar(backgroundColor: Colors.orange, child: Text("${i+1}", style: const TextStyle(color: Colors.white))),
-              title: Text(chapters[0]["t"], style: const TextStyle(fontWeight: FontWeight.bold)),
-              onTap: () {
-                HapticFeedback.mediumImpact();
-                showModalBottomSheet(context: c, builder: (c) => Container(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      Text(chapters[0]["sh"], textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      const Divider(),
-                      Text("अर्थ: ${chapters[0]["m"]}", textAlign: TextAlign.center),
-                      const Spacer(),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.share),
-                        label: const Text("WhatsApp पर शेयर करें"),
-                        onPressed: () => Share.share("${chapters[0]["sh"]}\n\nArth: ${chapters[0]["m"]}\n- Bhajan Marg App"),
-                      )
-                    ],
-                  ),
-                ));
-              },
-            ),
-          ), childCount: 18),
-        )
+        if (_isLoading)
+          const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
+        else
+          SliverList(
+            delegate: SliverChildBuilderDelegate((c, i) {
+              final ch = _filteredChapters[i];
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: ListTile(
+                  leading: CircleAvatar(backgroundColor: Colors.orange, child: Text("${ch['chapter_number']}", style: const TextStyle(color: Colors.white))),
+                  title: Text(ch['name_hindi'] ?? ch['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text("${ch['verses_count']} श्लोक"),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Loading Chapter ${ch['chapter_number']}...")));
+                  },
+                ),
+              );
+            }, childCount: _filteredChapters.length),
+          ),
       ],
     );
   }
@@ -153,22 +187,19 @@ class _JapaTrackerState extends State<JapaTracker> {
   _loadAndCheckDate() async {
     final p = await SharedPreferences.getInstance();
     String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    
     setState(() {
       _count = p.getInt('c') ?? 0;
       _history = p.getStringList('h') ?? [];
       _lastDate = p.getString('ld') ?? today;
     });
 
-    if (_lastDate != today) {
-      if (_count > 0) {
-        _history.insert(0, "$_lastDate: $_count Jap (Auto-Saved)");
-        _count = 0;
-        await p.setInt('c', 0);
-        await p.setStringList('h', _history);
-      }
+    if (_lastDate != today && _count > 0) {
+      _history.insert(0, "$_lastDate: $_count जप (स्वयं सेवित)");
+      _count = 0;
+      await p.setInt('c', 0);
+      await p.setStringList('h', _history);
       await p.setString('ld', today);
-      setState(() => _lastDate = today);
+      setState(() {});
     }
   }
 
@@ -199,8 +230,7 @@ class _JapaTrackerState extends State<JapaTracker> {
                     child: Container(
                       height: 160, width: 160,
                       decoration: BoxDecoration(
-                        color: Colors.orange[800], 
-                        shape: BoxShape.circle,
+                        color: Colors.orange[800], shape: BoxShape.circle,
                         boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10)]
                       ),
                       child: const Center(child: Text("जप करें", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold))),
@@ -211,10 +241,7 @@ class _JapaTrackerState extends State<JapaTracker> {
             ),
           ),
           const Divider(thickness: 2),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text("साधना इतिहास", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-          ),
+          const Padding(padding: EdgeInsets.all(8), child: Text("साधना इतिहास", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
           Expanded(
             flex: 4,
             child: _history.isEmpty 
@@ -225,7 +252,7 @@ class _JapaTrackerState extends State<JapaTracker> {
                     margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
                     child: ListTile(
                       leading: const Icon(Icons.history, color: Colors.orange),
-                      title: Text(_history[i].replaceAll("(Auto-Saved)", "(स्वयं सेवित)")),
+                      title: Text(_history[i]),
                     ),
                   ),
                 ),
