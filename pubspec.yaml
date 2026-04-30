@@ -18,7 +18,7 @@ dependencies:
   share_plus: ^7.2.2
   url_launcher: ^6.2.5
   cupertino_icons: ^1.0.6
-  async_wallpaper: 2.0.2
+  wallpaper_manager_flutter: ^0.1.1
 
 dev_dependencies:
   flutter_test:
