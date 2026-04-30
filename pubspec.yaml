@@ -1,7 +1,6 @@
 name: lokesh_bhajan_app
 description: "Bhajan Marg - Shri Premanand Ji Maharaj Spiritual App"
 publish_to: 'none'
-
 version: 1.0.2+3
 
 environment:
@@ -10,7 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
   http: ^1.1.0
   font_awesome_flutter: ^10.7.0
   shared_preferences: ^2.2.2
@@ -27,3 +25,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/wallpaper.jpg
+    
